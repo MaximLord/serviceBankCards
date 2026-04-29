@@ -1,7 +1,10 @@
 package bankCards.serviceBankCards.responceDto;
 
-import java.math.BigDecimal;
+import bankCards.serviceBankCards.entity.TypeTransaction;
 
-public record TransactionResponseDto(String CardNumber, BigDecimal amount) {
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+public record TransactionResponseDto(String CardNumber, BigDecimal amount, TypeTransaction typeTransaction, LocalDateTime dateTime) {
 
 }
