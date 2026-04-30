@@ -1,9 +1,6 @@
 package bankCards.serviceBankCards.service;
 
-import bankCards.serviceBankCards.entity.Account;
-import bankCards.serviceBankCards.entity.Card;
-import bankCards.serviceBankCards.entity.Transaction;
-import bankCards.serviceBankCards.entity.TypeTransaction;
+import bankCards.serviceBankCards.entity.*;
 import bankCards.serviceBankCards.repository.AccountRepository;
 import bankCards.serviceBankCards.repository.CardRepository;
 import bankCards.serviceBankCards.repository.TransactionRepository;
@@ -53,12 +50,42 @@ public class TransactionService {
                 savedTransaction.getDate());
     }
 
-    public TypeTransaction withdraw(String cardNumber, BigDecimal amount){
+    @Transactional
+    public TransactionResponseDto withdraw(String cardNumber, String pin, BigDecimal amount) {
+        Card card = cardRepository.findByNumber(cardNumber).orElseThrow(() -> new RuntimeException("Карта не существует"));
 
+        if (!card.getPin().equals(pin)) {
+            throw new RuntimeException("Неверный pin");
+        }
 
+        Account account = card.getAccount();
+        BigDecimal currentBalance = account.getBalance();
 
-        return new TypeTransaction(
+        if (TypeCard.DEBIT.equals(account.getAccountType())) {
+            if (currentBalance.compareTo(amount) < 0) {
+                throw new RuntimeException("Недостаточно средств на дебетовом счету");
+            } else if (TypeCard.CREDIT.equals(account.getAccountType())) {
+                BigDecimal limit = new BigDecimal("-50000");
+                if (currentBalance.subtract(amount).compareTo(limit) < 0)
+                    throw new RuntimeException("Превышен кредитный лимит (макс. долг -50 000)");
+            }
+        }
 
-        )
+        account.setBalance(currentBalance.subtract(amount));
+        accountRepository.save(account);
+
+        Transaction transaction = new Transaction();
+        transaction.setType(TypeTransaction.WITHDRAW);
+        transaction.setSender(account);
+        transaction.setAmount(amount);
+        transaction.setDate(LocalDateTime.now());
+        transactionRepository.save(transaction);
+
+        return new TransactionResponseDto(
+                card.getNumber(),
+                amount,
+                TypeTransaction.WITHDRAW,
+                transaction.getDate()
+        );
     }
 }
